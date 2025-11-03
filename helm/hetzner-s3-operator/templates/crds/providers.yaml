@@ -19,7 +19,6 @@ spec:
                 - endpoint
                 - region
                 - auth
-                - projectId
               properties:
                 type:
                   type: string
@@ -34,25 +33,20 @@ spec:
                   type: string
                   description: Provider region
                 projectId:
-                  oneOf:
-                    - type: string
-                      description: Hetzner Cloud project ID as plain string
-                    - type: object
-                      description: Hetzner Cloud project ID from secret
-                      required: [secretRef]
-                      properties:
-                        secretRef:
-                          type: object
-                          required: [name]
-                          properties:
-                            name:
-                              type: string
-                            key:
-                              type: string
-                              default: project-id
-                            namespace:
-                              type: string
-                  description: Hetzner Cloud project ID (required for bucket policy ARN construction). Can be provided as a string or a secret reference.
+                  type: string
+                  description: Hetzner Cloud project ID as plain string (required if projectIdSecretRef not provided)
+                projectIdSecretRef:
+                  type: object
+                  description: Hetzner Cloud project ID from secret (required if projectId not provided)
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                    key:
+                      type: string
+                    namespace:
+                      type: string
                 auth:
                   type: object
                   required:

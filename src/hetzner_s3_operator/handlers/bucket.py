@@ -22,7 +22,7 @@ from ..utils.conditions import (
     set_ready_condition,
 )
 from ..utils.errors import sanitize_exception
-from ..utils.secrets import resolve_project_id
+from ..utils.secrets import get_secret_value
 from ..utils.events import (
     emit_bucket_created,
     emit_bucket_deleted,
@@ -96,26 +96,41 @@ class BucketHandler(BaseHandler):
             provider_client = create_provider_from_spec(provider_spec, provider_obj.get("metadata", {}))
 
             # Get project ID from provider spec (required for Hetzner ARN format)
-            # projectId can be a string or a secret reference
-            project_id_value = provider_spec.get("projectId")
-            if not project_id_value:
-                error_msg = "projectId is required in Provider spec for Hetzner buckets"
+            # Support both projectId (string) and projectIdSecretRef (secret reference)
+            project_id_secret_ref = provider_spec.get("projectIdSecretRef")
+            project_id_string = provider_spec.get("projectId")
+            
+            if not project_id_secret_ref and not project_id_string:
+                error_msg = "Either projectId or projectIdSecretRef is required in Provider spec for Hetzner buckets"
                 self.handle_validation_error(meta, error_msg)
             
-            # Resolve project ID from string or secret reference
-            try:
-                # Get CoreV1Api for secret access
+            # Resolve project ID from secret reference or plain string
+            if project_id_secret_ref:
+                # Resolve from secret reference
                 try:
-                    config.load_incluster_config()
-                except config.ConfigException:
-                    config.load_kube_config()
-                core_api = client.CoreV1Api()
-                
-                # Use provider namespace as default (similar to auth secrets)
-                project_id = resolve_project_id(core_api, provider_ns, project_id_value)
-            except ValueError as e:
-                error_msg = f"Failed to resolve projectId: {e}"
-                self.handle_validation_error(meta, error_msg)
+                    # Get CoreV1Api for secret access
+                    try:
+                        config.load_incluster_config()
+                    except config.ConfigException:
+                        config.load_kube_config()
+                    core_api = client.CoreV1Api()
+                    
+                    secret_name = project_id_secret_ref.get("name")
+                    if not secret_name:
+                        error_msg = "projectIdSecretRef.name is required"
+                        self.handle_validation_error(meta, error_msg)
+                    
+                    secret_key = project_id_secret_ref.get("key", "project-id")
+                    secret_namespace = project_id_secret_ref.get("namespace", provider_ns)
+                    
+                    # Use provider namespace as default (similar to auth secrets)
+                    project_id = get_secret_value(core_api, secret_namespace, secret_name, secret_key)
+                except ValueError as e:
+                    error_msg = f"Failed to resolve projectIdSecretRef: {e}"
+                    self.handle_validation_error(meta, error_msg)
+            else:
+                # Use plain string
+                project_id = project_id_string
 
             # Create bucket configuration
             bucket_config = create_bucket_config_from_spec(spec, provider_spec.get("region", "us-east-1"))
