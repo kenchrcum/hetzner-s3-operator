@@ -19,11 +19,10 @@ spec:
   # Option 1: projectId as plain string
   projectId: "12345"  # Your Hetzner Cloud project ID
   # Option 2: projectId from secret (recommended for sensitive data)
-  # projectId:
-  #   secretRef:
-  #     name: hetzner-credentials
-  #     key: project-id
-  #     # namespace: optional, defaults to provider namespace
+  # projectIdSecretRef:
+  #   name: hetzner-credentials
+  #   key: project-id
+  #   # namespace: optional, defaults to provider namespace
   auth:
     accessKeySecretRef:
       name: hetzner-credentials
