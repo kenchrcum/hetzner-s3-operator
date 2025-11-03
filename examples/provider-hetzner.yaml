@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hetzner-credentials
+type: Opaque
+stringData:
+  access-key: YOUR_ACCESS_KEY_ID
+  secret-key: YOUR_SECRET_KEY
+---
+apiVersion: hetzner-s3.cloud37.dev/v1alpha1
+kind: Provider
+metadata:
+  name: hetzner-nbg1
+spec:
+  type: hetzner
+  endpoint: https://your-endpoint.hetzner.cloud
+  region: nbg1
+  projectId: "12345"  # Your Hetzner Cloud project ID
+  auth:
+    accessKeySecretRef:
+      name: hetzner-credentials
+      key: access-key
+    secretKeySecretRef:
+      name: hetzner-credentials
+      key: secret-key
+

@@ -1,0 +1,26 @@
+apiVersion: hetzner-s3.cloud37.dev/v1alpha1
+kind: BucketPolicy
+metadata:
+  name: my-bucket-policy
+spec:
+  bucketRef:
+    name: my-bucket
+  policy:
+    version: "2012-10-17"
+    statement:
+      - effect: Allow
+        principal: "*"
+        action:
+          - s3:GetObject
+        resource:
+          - arn:aws:s3:::my-bucket-name/*
+      # Example of DenyAllExcept pattern (alternative to default policy)
+      - sid: DenyAllExceptSpecificAccessKey
+        effect: Deny
+        action: s3:*
+        resource:
+          - arn:aws:s3:::my-bucket-name
+          - arn:aws:s3:::my-bucket-name/*
+        notPrincipal:
+          AWS: arn:aws:iam:::user/p12345:AKIAIOSFODNN7EXAMPLE
+

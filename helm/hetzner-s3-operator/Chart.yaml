@@ -1,0 +1,19 @@
+apiVersion: v2
+name: hetzner-s3-operator
+description: A Helm chart for the Hetzner S3 Operator
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - s3
+  - hetzner
+  - operator
+  - kubernetes
+  - storage
+home: https://github.com/kenchrcum/hetzner-s3-operator
+sources:
+  - https://github.com/kenchrcum/hetzner-s3-operator
+maintainers:
+  - name: kenchrcum
+dependencies: []
+

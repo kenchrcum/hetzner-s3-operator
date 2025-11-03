@@ -1,0 +1,101 @@
+# Default values for hetzner-s3-operator
+replicaCount: 1
+
+image:
+  repository: kenchrcum/hetzner-s3-operator
+  pullPolicy: IfNotPresent
+  tag: "0.1.0"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+operator:
+  # Watch scope: namespaced or cluster
+  watchScope: namespaced
+  
+  # Log level
+  logLevel: INFO
+  
+  # Metrics port
+  metricsPort: 8080
+
+# OpenTelemetry tracing configuration
+tracing:
+  # Enable/disable tracing (set to false if no tracing collector is available)
+  enabled: false
+  
+  # OTLP exporter endpoint (default: http://localhost:4317)
+  # Examples:
+  #   - http://opentelemetry-collector:4317 (service in same namespace)
+  #   - http://opentelemetry-collector.opentelemetry.svc.cluster.local:4317 (service in different namespace)
+  #   - http://tracing.example.com:4317 (external endpoint)
+  endpoint: "http://localhost:4317"
+  
+  # Service name for tracing (default: hetzner-s3-operator)
+  serviceName: "hetzner-s3-operator"
+  
+  # Service version for tracing (default: uses Chart.AppVersion or "unknown")
+  serviceVersion: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use
+  name: ""
+
+rbac:
+  # Specifies whether RBAC resources should be created
+  create: true
+  # RBAC preset: minimal, scoped, or full
+  preset: minimal
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# Pod security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Container security context
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 8080
+
+# ServiceMonitor for Prometheus
+serviceMonitor:
+  enabled: false
+  namespace: ""
+  interval: 30s
+  scrapeTimeout: 10s
+  labels: {}
+
+# Additional labels
+labels: {}
+
+# Additional annotations
+annotations: {}
+

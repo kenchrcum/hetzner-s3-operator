@@ -1,0 +1,102 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: bucketpolicies.hetzner-s3.cloud37.dev
+spec:
+  group: hetzner-s3.cloud37.dev
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - bucketRef
+                - policy
+              properties:
+                bucketRef:
+                  type: object
+                  required: [name]
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                policy:
+                  type: object
+                  required: [version, statement]
+                  properties:
+                    version:
+                      type: string
+                      default: "2012-10-17"
+                    statement:
+                      type: array
+                      items:
+                        type: object
+                        required: [effect, action, resource]
+                        properties:
+                          sid:
+                            type: string
+                          effect:
+                            type: string
+                            enum: [Allow, Deny]
+                          principal:
+                            x-kubernetes-preserve-unknown-fields: true
+                            description: Principal(s) to apply policy to (mutually exclusive with notPrincipal)
+                          notPrincipal:
+                            x-kubernetes-preserve-unknown-fields: true
+                            description: Principal(s) to exclude from policy (mutually exclusive with principal, used for DenyAllExceptSpecificAccessKey patterns)
+                          action:
+                            type: array
+                            items:
+                              type: string
+                          resource:
+                            type: array
+                            items:
+                              type: string
+                          condition:
+                            type: object
+                            x-kubernetes-preserve-unknown-fields: true
+            status:
+              type: object
+              properties:
+                observedGeneration:
+                  type: integer
+                applied:
+                  type: boolean
+                lastSyncTime:
+                  type: string
+                  format: date-time
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                        enum: ["True", "False", "Unknown"]
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      observedGeneration:
+                        type: integer
+      subresources:
+        status: {}
+  scope: Namespaced
+  names:
+    plural: bucketpolicies
+    singular: bucketpolicy
+    kind: BucketPolicy
+    shortNames:
+      - s3policy
+

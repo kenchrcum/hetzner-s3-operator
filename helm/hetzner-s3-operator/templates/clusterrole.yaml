@@ -1,0 +1,80 @@
+{{- if .Values.rbac.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "hetzner-s3-operator.fullname" . }}
+  labels:
+    {{- include "hetzner-s3-operator.labels" . | nindent 4 }}
+rules:
+  # CRDs - allow listing to discover them
+  - apiGroups:
+      - apiextensions.k8s.io
+    resources:
+      - customresourcedefinitions
+    verbs:
+      - get
+      - list
+      - watch
+  
+  # Custom Resources (Hetzner S3 - only Provider, Bucket, BucketPolicy)
+  - apiGroups:
+      - hetzner-s3.cloud37.dev
+    resources:
+      - providers
+      - buckets
+      - bucketpolicies
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  
+  # CRD Status
+  - apiGroups:
+      - hetzner-s3.cloud37.dev
+    resources:
+      - providers/status
+      - buckets/status
+      - bucketpolicies/status
+    verbs:
+      - get
+      - update
+      - patch
+  
+  # Secrets (for credentials)
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  
+  # Events
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  
+  # ServiceAccounts
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+    verbs:
+      - get
+      - list
+      - watch
+{{- end }}
+

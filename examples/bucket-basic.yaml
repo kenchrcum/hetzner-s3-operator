@@ -1,0 +1,15 @@
+apiVersion: hetzner-s3.cloud37.dev/v1alpha1
+kind: Bucket
+metadata:
+  name: my-bucket
+spec:
+  providerRef:
+    name: hetzner-nbg1
+  name: my-bucket-name
+  accessKeyId: "AKIAIOSFODNN7EXAMPLE"  # Access key ID from Hetzner Cloud Console
+  versioning:
+    enabled: true
+  encryption:
+    enabled: true
+    algorithm: AES256
+

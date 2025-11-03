@@ -1,0 +1,206 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: buckets.hetzner-s3.cloud37.dev
+spec:
+  group: hetzner-s3.cloud37.dev
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required:
+                - providerRef
+                - name
+                - accessKeyId
+              properties:
+                providerRef:
+                  type: object
+                  required: [name]
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                name:
+                  type: string
+                  pattern: '^[a-z0-9][a-z0-9\-\.]{1,61}[a-z0-9]$'
+                accessKeyId:
+                  type: string
+                  description: |
+                    Hetzner Cloud access key ID. Access keys must be created manually in the Hetzner Cloud Web Console.
+                    This access key will be allowed access to the bucket via the default DenyAllExceptSpecificAccessKey policy.
+                region:
+                  type: string
+                versioning:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                    mfaDelete:
+                      type: boolean
+                      default: false
+                encryption:
+                  type: object
+                  properties:
+                    enabled:
+                      type: boolean
+                      default: false
+                    algorithm:
+                      type: string
+                      enum: [AES256, aws:kms]
+                      default: AES256
+                    kmsKeyId:
+                      type: string
+                publicAccess:
+                  type: object
+                  properties:
+                    blockPublicAcls:
+                      type: boolean
+                      default: true
+                    blockPublicPolicy:
+                      type: boolean
+                      default: true
+                    ignorePublicAcls:
+                      type: boolean
+                      default: true
+                    restrictPublicBuckets:
+                      type: boolean
+                      default: true
+                lifecycle:
+                  type: object
+                  properties:
+                    rules:
+                      type: array
+                      items:
+                        type: object
+                        required: [id]
+                        properties:
+                          id:
+                            type: string
+                          status:
+                            type: string
+                            enum: [Enabled, Disabled]
+                            default: Enabled
+                          prefix:
+                            type: string
+                          expiration:
+                            type: object
+                            properties:
+                              days:
+                                type: integer
+                                minimum: 1
+                              date:
+                                type: string
+                                format: date
+                          transitions:
+                            type: array
+                            items:
+                              type: object
+                              required: [days, storageClass]
+                              properties:
+                                days:
+                                  type: integer
+                                  minimum: 1
+                                storageClass:
+                                  type: string
+                cors:
+                  type: object
+                  properties:
+                    rules:
+                      type: array
+                      items:
+                        type: object
+                        required: [allowedOrigins, allowedMethods]
+                        properties:
+                          allowedOrigins:
+                            type: array
+                            items:
+                              type: string
+                          allowedMethods:
+                            type: array
+                            items:
+                              type: string
+                              enum: [GET, POST, PUT, DELETE, HEAD]
+                          allowedHeaders:
+                            type: array
+                            items:
+                              type: string
+                          exposedHeaders:
+                            type: array
+                            items:
+                              type: string
+                          maxAgeSeconds:
+                            type: integer
+                            default: 3600
+                            minimum: 0
+                tagging:
+                  type: object
+                  properties:
+                    tags:
+                      type: object
+                      additionalProperties:
+                        type: string
+                deletionPolicy:
+                  type: string
+                  enum: [Delete, Retain]
+                  default: Retain
+                  description: |
+                    Deletion policy for the bucket.
+                    - Delete: Empty and delete the bucket when the resource is deleted
+                    - Retain: Keep the bucket (only remove from operator management)
+                forceDelete:
+                  type: boolean
+                  default: false
+                  description: |
+                    When true and deletionPolicy is Delete, attempt to delete the bucket even if it's not empty.
+                    This will delete all objects in the bucket.
+            status:
+              type: object
+              properties:
+                observedGeneration:
+                  type: integer
+                bucketName:
+                  type: string
+                arn:
+                  type: string
+                exists:
+                  type: boolean
+                lastSyncTime:
+                  type: string
+                  format: date-time
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                      status:
+                        type: string
+                        enum: ["True", "False", "Unknown"]
+                      reason:
+                        type: string
+                      message:
+                        type: string
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                      observedGeneration:
+                        type: integer
+      subresources:
+        status: {}
+  scope: Namespaced
+  names:
+    plural: buckets
+    singular: bucket
+    kind: Bucket
+    shortNames:
+      - s3bkt
+
