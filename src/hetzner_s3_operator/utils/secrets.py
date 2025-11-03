@@ -8,6 +8,44 @@ from typing import Any
 from kubernetes import client
 
 
+def resolve_project_id(
+    api: client.CoreV1Api,
+    namespace: str,
+    project_id: str | dict[str, Any],
+) -> str:
+    """Resolve project ID from either a string or a secret reference.
+
+    Args:
+        api: Kubernetes API client
+        namespace: Namespace of the secret (if using secret reference)
+        project_id: Project ID as string or dict with secretRef
+
+    Returns:
+        Resolved project ID string
+
+    Raises:
+        ValueError: If project_id format is invalid or secret not found
+    """
+    if isinstance(project_id, str):
+        return project_id
+    
+    if isinstance(project_id, dict):
+        secret_ref = project_id.get("secretRef", {})
+        if not secret_ref:
+            raise ValueError("projectId.secretRef is required when using secret reference")
+        
+        secret_name = secret_ref.get("name")
+        if not secret_name:
+            raise ValueError("projectId.secretRef.name is required")
+        
+        secret_key = secret_ref.get("key", "project-id")
+        secret_namespace = secret_ref.get("namespace", namespace)
+        
+        return get_secret_value(api, secret_namespace, secret_name, secret_key)
+    
+    raise ValueError(f"Invalid projectId format: {project_id}")
+
+
 def get_secret_value(
     api: client.CoreV1Api,
     namespace: str,

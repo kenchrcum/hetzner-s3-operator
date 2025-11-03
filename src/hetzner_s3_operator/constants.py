@@ -32,6 +32,8 @@ COND_ENDPOINT_REACHABLE = "EndpointReachable"
 COND_CREATION_FAILED = "CreationFailed"
 COND_POLICY_INVALID = "PolicyInvalid"
 COND_APPLY_FAILED = "ApplyFailed"
+COND_ATTACH_FAILED = "AttachFailed"
+COND_ROTATION_FAILED = "RotationFailed"
 
 # Event Reasons
 EVENT_REASON_RECONCILE_STARTED = "ReconcileStarted"

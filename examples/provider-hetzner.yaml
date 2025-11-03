@@ -6,6 +6,7 @@ type: Opaque
 stringData:
   access-key: YOUR_ACCESS_KEY_ID
   secret-key: YOUR_SECRET_KEY
+  project-id: "12345"  # Optional: Include if using secret reference for projectId
 ---
 apiVersion: hetzner-s3.cloud37.dev/v1alpha1
 kind: Provider
@@ -15,7 +16,14 @@ spec:
   type: hetzner
   endpoint: https://your-endpoint.hetzner.cloud
   region: nbg1
+  # Option 1: projectId as plain string
   projectId: "12345"  # Your Hetzner Cloud project ID
+  # Option 2: projectId from secret (recommended for sensitive data)
+  # projectId:
+  #   secretRef:
+  #     name: hetzner-credentials
+  #     key: project-id
+  #     # namespace: optional, defaults to provider namespace
   auth:
     accessKeySecretRef:
       name: hetzner-credentials
