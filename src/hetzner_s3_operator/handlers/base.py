@@ -63,7 +63,7 @@ class BaseHandler:
         ctx = self._get_resource_context(meta)
         log_resource_event(
             self.logger,
-            controller="wasabi-s3-operator",
+            controller="hetzner-s3-operator",
             resource_kind=self.kind,
             resource_name=ctx["name"],
             namespace=ctx["namespace"],
@@ -94,7 +94,7 @@ class BaseHandler:
         ctx = self._get_resource_context(meta)
         log_resource_event(
             self.logger,
-            controller="wasabi-s3-operator",
+            controller="hetzner-s3-operator",
             resource_kind=self.kind,
             resource_name=ctx["name"],
             namespace=ctx["namespace"],
@@ -134,7 +134,7 @@ class BaseHandler:
         
         log_resource_event(
             self.logger,
-            controller="wasabi-s3-operator",
+            controller="hetzner-s3-operator",
             resource_kind=self.kind,
             resource_name=ctx["name"],
             namespace=ctx["namespace"],

@@ -49,7 +49,7 @@ def create_access_key_secret(
             namespace=namespace,
             owner_references=owner_references or [],
             labels={
-                "s3.cloud37.dev/managed-by": "wasabi-s3-operator",
+                "s3.cloud37.dev/managed-by": "hetzner-s3-operator",
                 "s3.cloud37.dev/resource-type": "access-key",
             },
         ),
