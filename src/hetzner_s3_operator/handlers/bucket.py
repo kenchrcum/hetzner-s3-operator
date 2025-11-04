@@ -59,9 +59,9 @@ class BucketHandler(BaseHandler):
             # Validate spec
             if not bucket_name:
                 self.handle_validation_error(meta, "bucket name is required")
+
             if not access_key_id_string and not access_key_id_secret_ref:
                 self.handle_validation_error(meta, "Either accessKeyId or accessKeyIdSecretRef is required for Hetzner buckets")
-                self.handle_validation_error(meta, "accessKeyId is required for Hetzner buckets")
 
             provider_name = provider_ref.get("name")
             if not provider_name:
@@ -646,6 +646,27 @@ class BucketHandler(BaseHandler):
 
                     if provider_client.bucket_exists(bucket_name):
                         if deletion_policy == "Delete":
+                            # Step 1: Delete bucket policy first (required before bucket deletion)
+                            try:
+                                provider_client.delete_bucket_policy(bucket_name)
+                                self.log_info(meta, f"Deleted bucket policy for bucket {bucket_name}",
+                                             reason="PolicyDeleted", bucket_name=bucket_name)
+                            except ClientError as e:
+                                error_code = e.response.get("Error", {}).get("Code", "")
+                                # If policy doesn't exist, that's fine - continue with bucket deletion
+                                if error_code == "NoSuchBucketPolicy":
+                                    self.log_info(meta, f"No bucket policy found for bucket {bucket_name}, proceeding with deletion",
+                                                 reason="NoPolicyFound", bucket_name=bucket_name)
+                                else:
+                                    # Log warning but continue - some providers might allow deletion without policy removal
+                                    self.log_warning(meta, f"Failed to delete bucket policy for bucket {bucket_name}: {e}, proceeding with bucket deletion",
+                                                   reason="PolicyDeletionWarning", bucket_name=bucket_name, error=str(e))
+                            except Exception as e:
+                                # Log warning but continue - some providers might allow deletion without policy removal
+                                self.log_warning(meta, f"Unexpected error deleting bucket policy for bucket {bucket_name}: {e}, proceeding with bucket deletion",
+                                               reason="PolicyDeletionWarning", bucket_name=bucket_name, error=str(e))
+                            
+                            # Step 2: Delete the bucket
                             provider_client.delete_bucket(bucket_name, force=force_delete)
                             emit_bucket_deleted(meta, bucket_name)
                             self.log_info(meta, f"Deleted bucket {bucket_name}", reason="BucketDeleted", bucket_name=bucket_name)
