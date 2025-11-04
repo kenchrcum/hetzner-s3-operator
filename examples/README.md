@@ -25,9 +25,11 @@ Then create a Provider resource (see `provider-hetzner.yaml`).
 ### 2. Create Bucket
 
 Create a Bucket resource (see `bucket-basic.yaml`). Note that:
-- You must specify `accessKeyId` (created manually in Hetzner Cloud Console)
+- You must specify either `accessKeyId` (plain string) or `accessKeyIdSecretRef` (secret reference)
+- The access key must be created manually in Hetzner Cloud Console
 - A default `DenyAllExceptSpecificAccessKey` policy is automatically created
 - This policy restricts access to only the specified access key
+- Using `accessKeyIdSecretRef` is recommended for sensitive data
 
 ### 3. Custom Bucket Policy (Optional)
 
@@ -36,7 +38,7 @@ You can create a custom BucketPolicy to override the default policy (see `bucket
 ## Key Differences from Other S3 Operators
 
 - **Access keys must be created manually** in Hetzner Cloud Web Console
-- **Every bucket requires an `accessKeyId`** field
+- **Every bucket requires either `accessKeyId` or `accessKeyIdSecretRef`** field
 - **Default security**: All buckets automatically get a DenyAllExceptSpecificAccessKey policy
 - **No IAM operations**: The operator cannot create users or access keys
 

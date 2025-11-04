@@ -6,7 +6,13 @@ spec:
   providerRef:
     name: hetzner-nbg1
   name: my-bucket-name
+  # Option 1: accessKeyId as plain string
   accessKeyId: "AKIAIOSFODNN7EXAMPLE"  # Access key ID from Hetzner Cloud Console
+  # Option 2: accessKeyId from secret (recommended for sensitive data)
+  # accessKeyIdSecretRef:
+  #   name: hetzner-credentials
+  #   key: access-key-id
+  #   # namespace: optional, defaults to bucket namespace
   versioning:
     enabled: true
   encryption:

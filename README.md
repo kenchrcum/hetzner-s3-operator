@@ -19,7 +19,7 @@ The Hetzner S3 Operator brings declarative S3 bucket management directly into yo
 ### Key Differences from Other S3 Operators
 
 - **No User/AccessKey Management**: Access keys must be created manually in the Hetzner Cloud Web Console
-- **Required Access Key ID**: Bucket resources require an `accessKeyId` field specifying which access key to use
+- **Required Access Key ID**: Bucket resources require either `accessKeyId` (plain string) or `accessKeyIdSecretRef` (secret reference) to specify which access key to use
 - **Automatic Deny Policy**: By default, all buckets get a DenyAllExceptSpecificAccessKey policy to restrict access
 - **No IAM Policies**: IAM policies are not supported on Hetzner Cloud
 
@@ -146,7 +146,8 @@ Manages Hetzner Cloud S3 buckets with automatic policy creation.
 
 **Key Fields:**
 - `spec.name` (required) — Name of the bucket
-- `spec.accessKeyId` (required) — Hetzner Cloud access key ID (created manually in console)
+- `spec.accessKeyId` (optional) — Hetzner Cloud access key ID as plain string (required if `accessKeyIdSecretRef` not provided)
+- `spec.accessKeyIdSecretRef` (optional) — Reference to secret containing access key ID (required if `accessKeyId` not provided)
 - `spec.providerRef` (required) — Reference to Provider resource
 - `spec.versioning` — Enable versioning
 - `spec.encryption` — Encryption configuration

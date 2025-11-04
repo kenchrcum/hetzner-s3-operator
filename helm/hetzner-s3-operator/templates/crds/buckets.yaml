@@ -17,7 +17,6 @@ spec:
               required:
                 - providerRef
                 - name
-                - accessKeyId
               properties:
                 providerRef:
                   type: object
@@ -33,8 +32,22 @@ spec:
                 accessKeyId:
                   type: string
                   description: |
-                    Hetzner Cloud access key ID. Access keys must be created manually in the Hetzner Cloud Web Console.
+                    Hetzner Cloud access key ID as plain string (required if accessKeyIdSecretRef not provided).
+                    Access keys must be created manually in the Hetzner Cloud Web Console.
                     This access key will be allowed access to the bucket via the default DenyAllExceptSpecificAccessKey policy.
+                accessKeyIdSecretRef:
+                  type: object
+                  description: Hetzner Cloud access key ID from secret (required if accessKeyId not provided).
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                    key:
+                      type: string
+                      default: access-key-id
+                    namespace:
+                      type: string
                 region:
                   type: string
                 versioning:

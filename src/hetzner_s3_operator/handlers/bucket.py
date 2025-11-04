@@ -52,14 +52,15 @@ class BucketHandler(BaseHandler):
         name = meta.get("name", "unknown")
         bucket_name = spec.get("name")
         provider_ref = spec.get("providerRef", {})
-        access_key_id = spec.get("accessKeyId")
+        access_key_id_string = spec.get("accessKeyId")
+        access_key_id_secret_ref = spec.get("accessKeyIdSecretRef")
 
         with trace_span("reconcile_bucket", kind=KIND_BUCKET, attributes={"bucket.name": bucket_name or name}):
             # Validate spec
             if not bucket_name:
                 self.handle_validation_error(meta, "bucket name is required")
-
-            if not access_key_id:
+            if not access_key_id_string and not access_key_id_secret_ref:
+                self.handle_validation_error(meta, "Either accessKeyId or accessKeyIdSecretRef is required for Hetzner buckets")
                 self.handle_validation_error(meta, "accessKeyId is required for Hetzner buckets")
 
             provider_name = provider_ref.get("name")
