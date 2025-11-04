@@ -12,4 +12,3 @@ spec:
   encryption:
     enabled: true
     algorithm: AES256
-

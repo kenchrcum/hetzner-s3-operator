@@ -300,6 +300,10 @@ class BaseHandler:
         try:
             reconcile_fn()
             metrics.reconcile_total.labels(kind=self.kind, result="success").inc()
+        except kopf.TemporaryError:
+            # TemporaryError is expected - don't log as error, just re-raise for retry
+            metrics.reconcile_total.labels(kind=self.kind, result="retry").inc()
+            raise
         except Exception as e:
             sanitized_error = sanitize_exception(e)
             error_type = type(e).__name__

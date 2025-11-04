@@ -9,6 +9,7 @@ from typing import Any
 
 import kopf
 from kubernetes import client
+from botocore.exceptions import ClientError
 
 from .. import metrics
 from ..builders.provider import create_provider_from_spec
@@ -89,16 +90,29 @@ class BucketPolicyHandler(BaseHandler):
                     return
                 raise
 
-            # Check if bucket is ready
+            # Check if bucket is ready and exists
             bucket_status = bucket_obj.get("status", {})
             bucket_conditions = bucket_status.get("conditions", [])
             bucket_ready = any(
                 cond.get("type") == "Ready" and cond.get("status") == "True" for cond in bucket_conditions
             )
+            bucket_exists_in_status = bucket_status.get("exists", False)
 
             if not bucket_ready:
                 error_msg = f"Bucket {bucket_name} is not ready"
                 self.log_warning(meta, error_msg, reason="BucketNotReady", bucket_name=bucket_name)
+                conditions = status.get("conditions", [])
+                conditions = set_bucket_not_ready_condition(conditions, error_msg)
+                metrics.reconcile_total.labels(kind=KIND_BUCKET_POLICY, result="failed").inc()
+                patch.status.update({
+                    "conditions": conditions,
+                    "observedGeneration": meta.get("generation", 0),
+                })
+                raise kopf.TemporaryError(error_msg)
+
+            if not bucket_exists_in_status:
+                error_msg = f"Bucket {bucket_name} does not exist according to bucket status"
+                self.log_warning(meta, error_msg, reason="BucketNotExists", bucket_name=bucket_name)
                 conditions = status.get("conditions", [])
                 conditions = set_bucket_not_ready_condition(conditions, error_msg)
                 metrics.reconcile_total.labels(kind=KIND_BUCKET_POLICY, result="failed").inc()
@@ -138,19 +152,9 @@ class BucketPolicyHandler(BaseHandler):
 
             with trace_span("apply_bucket_policy", kind=KIND_BUCKET_POLICY):
                 try:
-                    # Check if bucket exists
-                    if not provider_client.bucket_exists(bucket_name):
-                        error_msg = f"Bucket {bucket_name} does not exist in provider"
-                        self.log_error(meta, error_msg, reason="BucketNotExists", bucket_name=bucket_name)
-                        conditions = set_bucket_not_ready_condition(conditions, error_msg)
-                        metrics.reconcile_total.labels(kind=KIND_BUCKET_POLICY, result="failed").inc()
-                        patch.status.update({
-                            "conditions": conditions,
-                            "observedGeneration": meta.get("generation", 0),
-                        })
-                        return
-
                     # Check if policy has changed by comparing with current policy
+                    # Note: We trust the bucket CRD status that bucket exists and is ready
+                    # If bucket doesn't exist, the S3 API call will fail and we'll handle it below
                     policy_changed = True
                     try:
                         current_policy = provider_client.get_bucket_policy(bucket_name)
@@ -191,6 +195,29 @@ class BucketPolicyHandler(BaseHandler):
                     # Set ready condition
                     conditions = set_ready_condition(conditions, True, f"Policy applied to bucket {bucket_name}")
 
+                except kopf.TemporaryError:
+                    # Re-raise TemporaryError to allow retry - don't log as error
+                    raise
+                except ClientError as e:
+                    # Handle specific S3 errors
+                    error_code = e.response.get("Error", {}).get("Code", "")
+                    if error_code == "NoSuchBucket":
+                        # Bucket doesn't exist in provider - this shouldn't happen if bucket status says it exists
+                        # But might be a timing issue, so retry
+                        error_msg = f"Bucket {bucket_name} does not exist in provider, will retry"
+                        self.log_warning(meta, error_msg, reason="BucketNotExists", bucket_name=bucket_name)
+                        raise kopf.TemporaryError(error_msg, delay=5)
+                    else:
+                        error_msg = f"Failed to apply policy: {str(e)}"
+                        self.log_error(meta, error_msg, error=e, reason="PolicyApplyFailed", bucket_name=bucket_name)
+                        conditions = set_apply_failed_condition(conditions, error_msg)
+                        emit_policy_failed(meta, error_msg)
+                        metrics.reconcile_total.labels(kind=KIND_BUCKET_POLICY, result="failed").inc()
+                        patch.status.update({
+                            "applied": False,
+                            "conditions": conditions,
+                            "observedGeneration": meta.get("generation", 0),
+                        })
                 except Exception as e:
                     error_msg = f"Failed to apply policy: {str(e)}"
                     self.log_error(meta, error_msg, error=e, reason="PolicyApplyFailed", bucket_name=bucket_name)

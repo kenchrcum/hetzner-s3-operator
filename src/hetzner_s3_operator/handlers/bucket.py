@@ -9,6 +9,7 @@ from typing import Any
 
 import kopf
 from kubernetes import client, config
+from botocore.exceptions import ClientError
 
 from .. import metrics
 from ..builders.bucket import create_bucket_config_from_spec
@@ -148,6 +149,26 @@ class BucketHandler(BaseHandler):
                         emit_bucket_created(meta, bucket_name)
                         self.log_info(meta, f"Created bucket {bucket_name}", reason="BucketCreated", bucket_name=bucket_name)
                         metrics.bucket_operations_total.labels(operation="create", result="success").inc()
+                    except ClientError as e:
+                        # If bucket already exists, that's fine - treat as success
+                        error_code = e.response.get("Error", {}).get("Code", "")
+                        error_message = str(e)
+                        if error_code == "BucketAlreadyExists" or "BucketAlreadyExists" in error_message:
+                            self.log_info(meta, f"Bucket {bucket_name} already exists, continuing with reconciliation", 
+                                         reason="BucketAlreadyExists", bucket_name=bucket_name)
+                            emit_bucket_created(meta, bucket_name)
+                            metrics.bucket_operations_total.labels(operation="create", result="success").inc()
+                        else:
+                            error_msg = f"Failed to create bucket: {str(e)}"
+                            self.log_error(meta, error_msg, error=e, reason="CreationFailed", bucket_name=bucket_name)
+                            conditions = set_creation_failed_condition(conditions, error_msg)
+                            metrics.bucket_operations_total.labels(operation="create", result="failed").inc()
+                            patch.status.update({
+                                "exists": False,
+                                "conditions": conditions,
+                                "observedGeneration": meta.get("generation", 0),
+                            })
+                            return
                     except Exception as e:
                         error_msg = f"Failed to create bucket: {str(e)}"
                         self.log_error(meta, error_msg, error=e, reason="CreationFailed", bucket_name=bucket_name)
@@ -162,7 +183,7 @@ class BucketHandler(BaseHandler):
 
                 # Create default DenyAllExceptSpecificAccessKey bucket policy
                 self._create_default_bucket_policy(
-                    api, namespace, name, bucket_name, access_key_id, project_id, meta
+                    api, namespace, name, bucket_name, access_key_id, project_id, provider_spec, provider_ns, meta
                 )
             else:
                 # Bucket exists - reconcile configuration changes
@@ -172,7 +193,7 @@ class BucketHandler(BaseHandler):
 
                 # Ensure default bucket policy exists
                 self._ensure_default_bucket_policy(
-                    api, namespace, name, bucket_name, access_key_id, project_id, meta
+                    api, namespace, name, bucket_name, access_key_id, project_id, provider_spec, provider_ns, meta
                 )
 
             # Set ready condition
@@ -196,45 +217,140 @@ class BucketHandler(BaseHandler):
         bucket_name: str,
         access_key_id: str,
         project_id: str,
+        provider_spec: dict[str, Any],
+        provider_ns: str,
         meta: dict[str, Any],
     ) -> None:
-        """Create default DenyAllExceptSpecificAccessKey bucket policy for Hetzner."""
+        """Create default DenyAllExceptSpecificAccessKey bucket policy for Hetzner.
+        
+        This policy:
+        1. Allows the operator's access key to manage bucket policies
+        2. Denies all other access except for the specified user access key
+        """
         bucketpolicy_crd_name = f"{bucket_crd_name}-default-policy"
         
-        # Construct Hetzner ARN: arn:aws:iam:::user/p<project_id>:<access_key>
-        access_key_arn = f"arn:aws:iam:::user/p{project_id}:{access_key_id}"
+        # Get operator's access key from provider credentials
+        try:
+            try:
+                config.load_incluster_config()
+            except config.ConfigException:
+                config.load_kube_config()
+            core_api = client.CoreV1Api()
+            
+            auth = provider_spec.get("auth", {})
+            access_key_ref = auth.get("accessKeySecretRef", {})
+            operator_access_key_name = access_key_ref.get("name")
+            operator_access_key_key = access_key_ref.get("key", "access-key")
+            
+            if not operator_access_key_name:
+                self.log_warning(meta, "Cannot get operator access key from provider, default policy may not work correctly",
+                               reason="ProviderConfigWarning", bucket_name=bucket_name)
+                operator_access_key_arn = None
+            else:
+                operator_access_key = get_secret_value(core_api, provider_ns, operator_access_key_name, operator_access_key_key)
+                operator_access_key_arn = f"arn:aws:iam:::user/p{project_id}:{operator_access_key}"
+        except Exception as e:
+            self.log_warning(meta, f"Failed to get operator access key: {e}, default policy may not work correctly",
+                           reason="ProviderConfigWarning", bucket_name=bucket_name, error=str(e))
+            operator_access_key_arn = None
         
-        # Create the DenyAllExceptSpecificAccessKey policy
+        # Construct Hetzner ARN: arn:aws:iam:::user/p<project_id>:<access_key>
+        user_access_key_arn = f"arn:aws:iam:::user/p{project_id}:{access_key_id}"
+        
+        # Create policy statements
+        statements = []
+        
+        # Statement 1: Allow operator to manage bucket policies (if we got the operator key)
+        if operator_access_key_arn:
+            statements.append({
+                "Sid": "AllowOperatorManagePolicies",
+                "Effect": "Allow",
+                "Principal": {
+                    "AWS": operator_access_key_arn,
+                },
+                "Action": [
+                    "s3:PutBucketPolicy",
+                    "s3:GetBucketPolicy",
+                    "s3:DeleteBucketPolicy",
+                ],
+                "Resource": [
+                    f"arn:aws:s3:::{bucket_name}",
+                    f"arn:aws:s3:::{bucket_name}/*",
+                ],
+            })
+        
+        # Statement 2: Deny all access except for the user's access key
+        deny_statement = {
+            "Sid": "DenyAllUsersButOne",
+            "Effect": "Deny",
+            "Action": "s3:*",
+            "Resource": [
+                f"arn:aws:s3:::{bucket_name}",
+                f"arn:aws:s3:::{bucket_name}/*",
+            ],
+            "NotPrincipal": {
+                "AWS": user_access_key_arn,
+            },
+        }
+        
+        # If we have operator key, also allow it in the NotPrincipal
+        if operator_access_key_arn:
+            deny_statement["NotPrincipal"]["AWS"] = [
+                operator_access_key_arn,
+                user_access_key_arn,
+            ]
+        
+        statements.append(deny_statement)
+        
+        # Create the policy
         deny_policy = {
             "Version": "2012-10-17",
-            "Statement": [
-                {
-                    "Sid": "DenyAllUsersButOne",
-                    "Effect": "Deny",
-                    "Action": "s3:*",
-                    "Resource": [
-                        f"arn:aws:s3:::{bucket_name}",
-                        f"arn:aws:s3:::{bucket_name}/*",
-                    ],
-                    "NotPrincipal": {
-                        "AWS": access_key_arn,
-                    },
-                }
-            ],
+            "Statement": statements,
         }
 
         # Convert to CRD format (lowercase keys)
+        crd_statements = []
+        for stmt in deny_policy["Statement"]:
+            crd_stmt: dict[str, Any] = {
+                "sid": stmt.get("Sid"),
+                "effect": stmt["Effect"],
+            }
+            
+            # Handle Principal (for Allow statements)
+            if "Principal" in stmt:
+                principal = stmt["Principal"]
+                if "AWS" in principal:
+                    aws_principal = principal["AWS"]
+                    # AWS can be string or list - convert to list format for CRD
+                    if isinstance(aws_principal, str):
+                        crd_stmt["principal"] = {"AWS": aws_principal}
+                    else:
+                        crd_stmt["principal"] = {"AWS": aws_principal}
+            
+            # Handle NotPrincipal (for Deny statements)
+            if "NotPrincipal" in stmt:
+                not_principal = stmt["NotPrincipal"]
+                if "AWS" in not_principal:
+                    aws_not_principal = not_principal["AWS"]
+                    # AWS can be string or list - convert to list format for CRD
+                    if isinstance(aws_not_principal, str):
+                        crd_stmt["notPrincipal"] = {"AWS": aws_not_principal}
+                    else:
+                        crd_stmt["notPrincipal"] = {"AWS": aws_not_principal}
+            
+            # Handle Action
+            action_value = stmt["Action"]
+            action_array = action_value if isinstance(action_value, list) else [action_value]
+            crd_stmt["action"] = action_array
+            
+            # Handle Resource
+            crd_stmt["resource"] = stmt["Resource"]
+            
+            crd_statements.append(crd_stmt)
+        
         crd_policy = {
             "version": deny_policy["Version"],
-            "statement": [
-                {
-                    "sid": deny_policy["Statement"][0]["Sid"],
-                    "effect": deny_policy["Statement"][0]["Effect"],
-                    "action": deny_policy["Statement"][0]["Action"],
-                    "resource": deny_policy["Statement"][0]["Resource"],
-                    "notPrincipal": deny_policy["Statement"][0]["NotPrincipal"],
-                }
-            ],
+            "statement": crd_statements,
         }
 
         try:
@@ -295,11 +411,13 @@ class BucketHandler(BaseHandler):
         bucket_name: str,
         access_key_id: str,
         project_id: str,
+        provider_spec: dict[str, Any],
+        provider_ns: str,
         meta: dict[str, Any],
     ) -> None:
         """Ensure default bucket policy exists (create if missing)."""
         self._create_default_bucket_policy(
-            api, namespace, bucket_crd_name, bucket_name, access_key_id, project_id, meta
+            api, namespace, bucket_crd_name, bucket_name, access_key_id, project_id, provider_spec, provider_ns, meta
         )
 
     def _reconcile_bucket_configuration(

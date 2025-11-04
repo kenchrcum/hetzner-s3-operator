@@ -146,7 +146,10 @@ class AWSProvider:
                     logger.warning(f"Failed to set CORS for bucket {name}: {cors_error}. Bucket created without CORS configuration.")
 
         except ClientError as e:
-            logger.error(f"Failed to create bucket {name}: {e}")
+            # Don't log BucketAlreadyExists as an error - it's expected if bucket already exists
+            error_code = e.response.get("Error", {}).get("Code", "")
+            if error_code != "BucketAlreadyExists":
+                logger.error(f"Failed to create bucket {name}: {e}")
             raise
 
     def is_bucket_empty(self, name: str) -> bool:
