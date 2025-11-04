@@ -1,6 +1,6 @@
 # Hetzner S3 Operator
 
-![Version](https://img.shields.io/badge/version-0.0.3-blue.svg)
+![Version](https://img.shields.io/badge/version-0.0.4-blue.svg)
 [![License](https://img.shields.io/badge/license-Unlicense-lightgrey.svg)](LICENSE)
 
 A Kubernetes operator for managing Hetzner Cloud S3 storage using the [Kopf](https://kopf.readthedocs.io) framework. Built specifically for Hetzner Cloud's S3-compatible storage service.
