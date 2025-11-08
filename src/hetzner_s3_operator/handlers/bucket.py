@@ -97,6 +97,33 @@ class BucketHandler(BaseHandler):
             provider_spec = provider_obj.get("spec", {})
             provider_client = create_provider_from_spec(provider_spec, provider_obj.get("metadata", {}))
 
+            # Resolve access key ID from secret reference or plain string
+            if access_key_id_secret_ref:
+                # Resolve from secret reference
+                try:
+                    # Get CoreV1Api for secret access
+                    try:
+                        config.load_incluster_config()
+                    except config.ConfigException:
+                        config.load_kube_config()
+                    core_api = client.CoreV1Api()
+                    
+                    secret_name = access_key_id_secret_ref.get("name")
+                    if not secret_name:
+                        error_msg = "accessKeyIdSecretRef.name is required"
+                        self.handle_validation_error(meta, error_msg)
+                    
+                    secret_key = access_key_id_secret_ref.get("key", "access-key-id")
+                    secret_namespace = access_key_id_secret_ref.get("namespace", namespace)
+                    
+                    access_key_id = get_secret_value(core_api, secret_namespace, secret_name, secret_key)
+                except ValueError as e:
+                    error_msg = f"Failed to resolve accessKeyIdSecretRef: {e}"
+                    self.handle_validation_error(meta, error_msg)
+            else:
+                # Use plain string
+                access_key_id = access_key_id_string
+
             # Get project ID from provider spec (required for Hetzner ARN format)
             # Support both projectId (string) and projectIdSecretRef (secret reference)
             project_id_secret_ref = provider_spec.get("projectIdSecretRef")
