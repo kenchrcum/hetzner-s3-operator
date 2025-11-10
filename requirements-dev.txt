@@ -6,7 +6,7 @@ pytest-asyncio==1.2.0
 pytest-cov==7.0.0
 moto==5.1.16
 ruff==0.14.3
-black==25.9.0
+black==25.11.0
 mypy==1.18.2
 pre-commit==4.3.0
 
