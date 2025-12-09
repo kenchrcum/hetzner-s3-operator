@@ -2,8 +2,8 @@ apiVersion: v2
 name: hetzner-s3-operator
 description: A Helm chart for the Hetzner S3 Operator
 type: application
-version: 0.1.0
-appVersion: "0.1.0"
+version: 0.1.1
+appVersion: "0.1.1"
 keywords:
   - s3
   - hetzner
@@ -15,5 +15,5 @@ sources:
   - https://github.com/kenchrcum/hetzner-s3-operator
 maintainers:
   - name: kenchrcum
+    url: https://github.com/kenchrcum
 dependencies: []
-
