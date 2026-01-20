@@ -1,5 +1,6 @@
 # Hetzner S3 Operator
 
+[![AI Assisted](https://img.shields.io/badge/AI-Assisted_Development-blueviolet)](AI_DISCLAIMER.md)
 ![Version](https://img.shields.io/badge/version-0.1.1-blue.svg)
 [![License](https://img.shields.io/badge/license-Unlicense-lightgrey.svg)](LICENSE)
 
