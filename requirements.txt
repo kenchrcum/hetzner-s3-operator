@@ -1,5 +1,5 @@
 # Production dependencies
-kopf==1.40.1
+kopf==1.42.5
 kubernetes==35.0.0
 prometheus_client==0.24.1
 PyYAML==6.0.3
