@@ -24,7 +24,7 @@ The following table lists all configurable values and their default values:
 | **Image Configuration** |
 | `image.repository` | Container image repository | `kenchrcum/hetzner-s3-operator` |
 | `image.pullPolicy` | Image pull policy | `IfNotPresent` |
-| `image.tag` | Container image tag | `0.1.1` |
+| `image.tag` | Container image tag | `0.1.2` |
 | `imagePullSecrets` | Array of image pull secrets | `[]` |
 | **Operator Configuration** |
 | `operator.watchScope` | Kubernetes watch scope (`namespaced` or `cluster`) | `namespaced` |
@@ -110,7 +110,7 @@ resources:
 # values-production.yaml
 image:
   repository: kenchrcum/hetzner-s3-operator
-  tag: "0.1.1"
+  tag: "0.1.2"
   pullPolicy: Always
 
 operator:
@@ -121,7 +121,7 @@ tracing:
   enabled: true
   endpoint: "http://opentelemetry-collector:4317"
   serviceName: "hetzner-s3-operator"
-  serviceVersion: "0.1.1"
+  serviceVersion: "0.1.2"
 
 resources:
   limits:
@@ -150,7 +150,7 @@ imagePullSecrets:
 
 image:
   repository: registry.example.com/hetzner-s3-operator
-  tag: "0.1.1"
+  tag: "0.1.2"
   pullPolicy: Always
 ```
 
@@ -214,7 +214,7 @@ helm upgrade hetzner-s3-operator hetzner-s3-operator/hetzner-s3-operator \
 # Upgrade using specific version
 helm upgrade hetzner-s3-operator hetzner-s3-operator/hetzner-s3-operator \
   --namespace hetzner-s3-operator-system \
-  --version 0.1.1
+  --version 0.1.2
 ```
 
 ## Uninstallation
