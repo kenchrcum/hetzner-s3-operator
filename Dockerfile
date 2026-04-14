@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.21-labs
+# syntax=docker/dockerfile:1.23-labs
 
 # Optional: pin base image by digest for enhanced security and reproducibility
 # When DIGEST is provided, it takes precedence over tag
