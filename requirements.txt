@@ -1,7 +1,7 @@
 # Production dependencies
 kopf==1.44.5
 kubernetes==35.0.0
-prometheus_client==0.24.1
+prometheus_client==0.25.0
 PyYAML==6.0.3
 boto3==1.42.89
 botocore==1.42.89
