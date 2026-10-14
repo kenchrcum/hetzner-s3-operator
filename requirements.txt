@@ -3,8 +3,8 @@ kopf==1.44.5
 kubernetes==36.0.0
 prometheus_client==0.25.0
 PyYAML==6.0.3
-boto3==1.43.14
-botocore==1.43.14
+boto3==1.43.114
+botocore==1.43.114
 werkzeug==3.1.8
 opentelemetry-api==1.42.1
 opentelemetry-sdk==1.42.1
